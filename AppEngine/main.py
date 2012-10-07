@@ -29,7 +29,7 @@ class LocationHandler(webapp.RequestHandler):
 		for loc in locations:
 			obj = {"key": str(loc.key()), "id": str(loc.key().id()), "name": loc.name}
 			if loc.parent() is not None:
-				obj['parent'] = loc.parent().key().id()
+				obj['parent'] = str(loc.parent().key())
 			
 			list.append(obj)
 		response = simplejson.dumps(list)
@@ -42,23 +42,19 @@ class LocationHandler(webapp.RequestHandler):
 		logging.info("BODY:" + val)		
 		obj = simplejson.loads(val);
 		logging.info("OBJECT:" + str(obj))	
-				
-		location = Location(name = obj['name'])
 		
-		if 'parent' in obj:
-			parent = obj['parent']
-			location.parent = db.Key.from_path('Location', parent)
-		
+		location = Location(name = obj['name'])  if 'parent' not in obj  else Location(parent = db.Key(encoded=str(obj['parent'])), name = obj['name'])
+			
 		location.put();
-		
-		self.response.out.write(str(location.key().id()));
+			
+		self.response.out.write(str(location.key()));
 	
 class ExitHandler(webapp.RequestHandler):
 	def get(self):
 		self.response.headers['Content-Type'] = 'application/json'
 		locParam = self.request.get("location");
 		logging.info("param: " + locParam)
-		locationKey = db.Key.from_path('Location', int(locParam))
+		locationKey = db.Key(encoded=locParam)
 		location = Location.get(locationKey)
 		logging.info("location: " + str(location));
 		exits = Exit.gql("WHERE ANCESTOR IS :1", location);
@@ -68,7 +64,7 @@ class ExitHandler(webapp.RequestHandler):
 		list = []
 		for exit in exits:
 			#pprint(inspect.getmembers(exit))
-			obj = {"name": exit.name, "id": str(exit.key().id()), "hint": exit.hint, "location": str(exit.parent_key().id())}
+			obj = {"name": exit.name, "key": str(exit.key()), "hint": exit.hint, "location": str(exit.parent_key())}
 			list.append(obj)
 		response = simplejson.dumps(list)
 		self.response.out.write(response)
@@ -79,14 +75,13 @@ class ExitHandler(webapp.RequestHandler):
 		logging.info("BODY:" + val)		
 		obj = simplejson.loads(val);
 		logging.info("OBJECT:" + str(obj))	
-		location = db.Key.from_path('Location', int(obj['location']))
-		logging.info("Location: " + str(location.id()))
+		location = db.Key(encoded=obj['location'])
 		exit = Exit(parent=location, name = obj['name'], hint = obj['hint'])
 		exit.put()
 		#logging.info("exit: " + inspect(exit))
 		#pprint(inspect.getmembers(exit))
-		logging.info("Parent id: " + str(exit.parent_key().id()))
-		self.response.out.write(str(exit.key().id()));
+		#logging.info("Parent id: " + str(exit.parent_key().id()))
+		self.response.out.write(str(exit.key()));
 
 
 def main():

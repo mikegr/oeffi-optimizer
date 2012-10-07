@@ -1,4 +1,4 @@
-export URL="http://oeffi-optimizer.appspot.com/location"
+export URL="http://oeffi-optimizer.appspot.com/locations"
 #export URL="http://localhost:8080/locations"
 curl -X POST --data @location1.json $URL
 curl -X POST --data @location2.json $URL
