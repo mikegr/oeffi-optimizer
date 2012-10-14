@@ -2,7 +2,7 @@ import logging
 import inspect
 from pprint import pprint
 from django.utils import simplejson
-from datetime import datetime
+from datetime import datetime, timedelta, tzinfo 
 from google.appengine.api import users
 from google.appengine.ext import blobstore
 from google.appengine.ext import db
@@ -11,17 +11,49 @@ from google.appengine.ext.webapp import util
 from google.appengine.ext.webapp import blobstore_handlers
 from google.appengine.ext.webapp.util import run_wsgi_app
 
+
+
+MASK = "%a, %d %b %Y %H:%M:%S %Z" 
+
 class Location(db.Model):
 	name = db.TextProperty() 
+	date = db.DateTimeProperty(auto_now_add=True)
 
 class Exit(db.Model):
 	location = db.IntegerProperty() 
 	name = db.TextProperty() 
 	hint = db.TextProperty() 
+	date = db.DateTimeProperty(auto_now_add=True)
+
 
 class LocationHandler(webapp.RequestHandler):
 	
 	def get(self):
+		
+		maxDateRow = db.GqlQuery('SELECT date FROM Location ORDER BY date').get()
+		
+		if (maxDateRow is not None): 
+			modifiedSinceStr = self.request.headers.get('If-Modified-Since', None)
+			
+			modifiedSince = datetime.strptime(modifiedSinceStr, MASK) if modifiedSinceStr is not None else None
+				
+			logging.info("If-Modified-Since: " + str(modifiedSince))
+			
+			maxDate = maxDateRow.date.replace(microsecond=0)
+			
+			logging.info("maxDate:" + str(maxDate))
+			
+			isNotModified = maxDate <= modifiedSince
+			
+			logging.info("seconds:" + str(isNotModified))
+			
+			
+			if ((modifiedSince is not None) and isNotModified):
+				self.response.set_status(304)
+				return
+			else:
+				self.response.headers['Last-Modified'] = maxDate.strftime(MASK) + "GMT"
+				
 		self.response.headers['Content-Type'] = 'application/json'
 		locations = db.GqlQuery("SELECT * FROM Location");
 		
@@ -33,6 +65,7 @@ class LocationHandler(webapp.RequestHandler):
 			
 			list.append(obj)
 		response = simplejson.dumps(list)
+
 		self.response.out.write(response)
 	
 
