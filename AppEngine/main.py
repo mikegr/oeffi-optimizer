@@ -43,17 +43,16 @@ class LocationHandler(webapp.RequestHandler):
 			
 			logging.info("maxDate:" + str(maxDate))
 			
-			isNotModified = maxDate <= modifiedSince
-			
-			logging.info("seconds:" + str(isNotModified))
-			
-			
-			if ((modifiedSince is not None) and isNotModified):
-				self.response.set_status(304)
-				return
-			else:
-				self.response.headers['Last-Modified'] = maxDate.strftime(MASK) + "GMT"
-				
+			if (modifiedSince is not None):
+				isNotModified = maxDate <= modifiedSince
+				logging.info("seconds:" + str(isNotModified))
+				if (isNotModified):
+					self.response.set_status(304)
+					return
+			self.response.headers['Last-Modified'] = maxDate.strftime(MASK) + "GMT"
+		else:
+			logging.info("no max date row");
+		
 		self.response.headers['Content-Type'] = 'application/json'
 		locations = db.GqlQuery("SELECT * FROM Location");
 		
